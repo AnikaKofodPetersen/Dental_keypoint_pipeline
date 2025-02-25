@@ -59,8 +59,14 @@
  ## 📖 Getting Started  
  
  To begin:  
- 1. Read the papers referenced at the beginning of this README.  
- 2. Follow the **tutorial notebook** included in this repository.  
+ 1. Read the papers referenced at the beginning of this README.
+ 2. Install jupyter in your conda environment
+ ```sh
+cd ..
+conda install jupyter
+pip install --force-reinstall charset_normalizer
+ ```
+ 3. Follow the **tutorial notebook** included in this repository.  
     - It was automatically downloaded when you cloned this repo.  
  
 Happy coding! 🎯  
