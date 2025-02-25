@@ -10,7 +10,7 @@
  
  ### 1️⃣ Clone the Repository  
  ```sh
- git clone <this-repo-url>
+ git clone https://github.com/AnikaKofodPetersen/Dental_keypoint_pipeline.git
  cd Dental_keypoint_pipeline
  ```
  
