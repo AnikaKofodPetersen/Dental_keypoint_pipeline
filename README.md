@@ -66,6 +66,10 @@ cd ..
 conda install jupyter
 pip install --force-reinstall charset_normalizer
  ```
+ 3. Run jupyter notebook
+ ```sh
+ jupyter notbeook
+  ```
  3. Follow the **tutorial notebook** included in this repository.  
     - It was automatically downloaded when you cloned this repo.  
  
