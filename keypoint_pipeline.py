@@ -23,6 +23,7 @@ from scipy.spatial.distance import cdist
 import multiprocessing
 import itertools
 import json
+import pyshot
 from scipy import spatial
 
 def gaussian(x, mean, sigma):
