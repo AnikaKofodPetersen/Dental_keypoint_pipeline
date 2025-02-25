@@ -25,6 +25,7 @@ import itertools
 import json
 import pyshot
 from scipy import spatial
+from scipy.spatial import procrustes
 
 def gaussian(x, mean, sigma):
     """ Subfunction for gaussian filter"""
@@ -549,24 +550,24 @@ def keypoint_correspondence(dict1, dict2, coord1, coord2):
 
     # Get coordinates
     query_coords = coord1
-    target_coords = jcoord2
+    target_coords = coord2
 
     # create subsets
-    rr_subset = dist_sorted[:rr]
-    query_kp = keys_query_sorted[:rr]
-    target_kp = keys_target_sorted[:rr]
+    rr_subset = dist_sorted[:15]
+    query_kp = keys_query_sorted[:15]
+    target_kp = keys_target_sorted[:15]
 
     # Means
     ar_mean.append(np.mean(rr_subset))
 
     # disparity subset
-    query_kp = keys_query_sorted[:rr]
-    target_kp = keys_target_sorted[:rr]
+    query_kp = keys_query_sorted[:8]
+    target_kp = keys_target_sorted[:8]
 
     # Disparity
     query_dis = [query_coords[key] for key in query_kp]
     target_dis = [target_coords[key] for key in target_kp]
-    if all(element == target_dis[0] for element in target_dis):
+    if np.all(target_dis == target_dis[0]):
         disparity.append(1)
     else:
         _, _, disp_raw = procrustes(np.array(query_dis), np.array(target_dis))
