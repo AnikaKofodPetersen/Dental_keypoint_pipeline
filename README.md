@@ -70,7 +70,7 @@ pip install --force-reinstall charset_normalizer
  ```sh
  jupyter notbeook
   ```
- 3. Follow the **tutorial notebook** included in this repository.  
+ 4. Follow the **tutorial notebook** included in this repository.  
     - It was automatically downloaded when you cloned this repo.  
  
 Happy coding! 🎯  
