@@ -17,7 +17,7 @@
  ### 2️⃣ Create and Activate the Conda Environment  
  ```sh
  conda env create -f environment.yml
- conda activate pyshot_env
+ conda activate AKPpyshot_env
  ```
  
  ---
@@ -51,7 +51,7 @@
  ```sh
  conda install pip
  conda install ipykernel
- python -m ipykernel install --user --name pyshot_kernel
+ python -m ipykernel install --user --name AKPpyshot_kernel
  ```
  
  ---
