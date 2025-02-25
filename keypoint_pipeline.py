@@ -206,10 +206,9 @@ def points_in_radius(mesh,point,r=1):
     """
     point = np.array(point)
     mesh_points = np.array(mesh.points())
-    tree = spatial.KDTree(mesh_points)
-    keep_index = tree.query_ball_point(point, r)
+    distances = np.linalg.norm(mesh_points-point,axis=1)
+    keep_index = np.where(distances < r)[0]
     return keep_index
-
 
 def principal_curvature(mesh):
     """Function for calculating the principal curvatures from the Gaussian and the mean"""
@@ -266,13 +265,13 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
     keypoints = []
     
     # Decimate for reproducibility
-    #print("Decimating/subdividing")
+    print("Decimating/subdividing")
     teeth = mesh.clone()
     area = teeth.area()
     n = len(teeth.points())
     n_a = round(res*area)
     frac = n_a/n
-    #print("Aimed resolution: ",round(n_a/area,3))
+    print("Aimed resolution: ",round(n_a/area,3))
     teeth = teeth.decimate(fraction=frac ,method='quadratic')
     
     #If the decimation doesn't work, try again with a different fraction
@@ -284,13 +283,13 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
         if len(mesh.faces())*(frac+0.5) < len(teeth.faces()):
             #print("Could not sucessfully decimate mesh. Try to do so manually.")
             sys.exit(1)
-    #print("True resolution: ",round(len(teeth.points())/area,3))
+    print("True resolution: ",round(len(teeth.points())/area,3))
     
     # Work with a mesh clone
     submesh = teeth.clone()
 
     # Apply Gaussian smoothing to deal with Difference of Curvature (DoC) - Initialization
-    #print("Preparing DoGs")
+    print("Preparing DoGs")
     DoG = []
     dog_meshes = [submesh.clone() for _ in range(6)]
     ref_mesh = submesh.clone()
@@ -299,7 +298,7 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
 
     # Iterate through points in mesh
     for i, p in enumerate(ref_mesh.points()):
-        #print("    ", round(((i + 1) / total) * 100, 2), " %   ", end="\r")
+        print("    ", round(((i + 1) / total) * 100, 2), " %   ", end="\r")
 
         # Find distances to center point for all points in the neighborhood
         connect_idx = points_in_radius(ref_mesh, p, r=4)
@@ -336,7 +335,7 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
         dog_gaus.append(gaus_curv)
 
     # find DoC differences
-    #print("    Working with DoG pyramids                                     ")
+    print("    Working with DoG pyramids                                     ")
     D1_min = np.subtract(dog_min[0],dog_min[1])
     D2_min = np.subtract(dog_min[1],dog_min[2])
     D3_min = np.subtract(dog_min[2],dog_min[3])
@@ -356,7 +355,7 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
 
     # Iterate through points in mesh
     for I, p in enumerate(ref_mesh.points()):
-        #print("    ", round(((I + 1) / total) * 100, 2), " %   ", end="\r")
+        print("    ", round(((I + 1) / total) * 100, 2), " %   ", end="\r")
         kp = False
 
         # Compare closest neighborhood
@@ -399,7 +398,7 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
 
     # Collect possible keypoints
     keypoints.append(submesh.points()[keypoints_id])
-    #print("    Amount of key points: ",len(keypoints_id)," ~ ",round((len(keypoints_id)/len(mesh.points()))*100,2)," %              ")
+    print("    Amount of key points: ",len(keypoints_id)," ~ ",round((len(keypoints_id)/len(mesh.points()))*100,2)," %              ")
 
     # check principle curvature maps
     if inspection == True:
@@ -448,6 +447,7 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
         return outputPts    
     elif returnIdx == False and returnPts == False:
         return outputPts
+
 
 def calculate_SHOT(keypoints,mesh, radius=1):
     """ Function for calculating SHOT descriptor
