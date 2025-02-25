@@ -1,4 +1,4 @@
-name: pyshot_env
+name: AKPpyshot_env
 channels:
   - defaults
   - anaconda
