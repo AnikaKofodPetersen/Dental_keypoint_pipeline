@@ -82,7 +82,6 @@ dependencies:
       - packaging==23.1
       - pillow==9.5.0
       - pyparsing==3.0.9
-      - pyshot==1.2
       - scikit-learn==0.24.2
       - scipy==1.10.1
       - threadpoolctl==3.1.0
@@ -91,4 +90,3 @@ dependencies:
       - wrapt==1.15.0
       - wslink==1.10.1
       - yarl==1.9.2
-prefix: /home/anko/miniconda3/envs/pyshot_env
