@@ -490,7 +490,7 @@ def calculate_SHOT(keypoints,mesh, radius=1):
     return keypoint_descrs
 
 def save_keypoints(keypoints, name, output_path):
-    with open(os.path.join(output_path,name,".json"), "w") as json_file:
+    with open(os.path.join(output_path,name+".json"), "w") as json_file:
         json.dump(keypoints, json_file)
 
 def convert_to_array(dictionary):
