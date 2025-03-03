@@ -2,7 +2,7 @@
 ###            Keypoint pipeline                ###
 ###################################################
 # Author: Anika Kofod Petersen
-# Date: 24th of February 2025
+# Date: 3rd of March 2025
 # Tested using python 3.10.6
 
 # Import packages
@@ -22,21 +22,8 @@ import math
 from scipy.spatial.distance import cdist
 import multiprocessing
 import itertools
-import json
-import pyshot
 from scipy import spatial
-from scipy.spatial import procrustes
-
-def gaussian(x, mean, sigma):
-    """ Subfunction for gaussian filter"""
-    """
-    Input: array with values, mean of gaussian, standard deviation of gaussian
-    Output: array of filtered values
-    """
-    coefficient = 1 / (sigma * np.sqrt(2 * np.pi))
-    exponent = -0.5 * ((x - mean) ** 2) / (sigma ** 2)
-    return coefficient * np.exp(exponent)
-
+from scipy.spatial import KDTree
 
 def boundaries(
         self,
@@ -243,21 +230,67 @@ def sort_index(lst, rev=True):
     indices = np.argsort(lst)[::-1 if rev else 1]
     return indices
     
-   
+
+def check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
+    # Precompute the contrast difference
+    contrast_diff = np.max(collected_subset_min) - np.min(collected_subset_min)
     
-def check_keypoint(p, collected_subset_min, collected_subset_max,contrast_threshold, bounds, ref_mesh):
-    # Ignore low contrast keypoints
-    if (np.max(collected_subset_min) - np.min(collected_subset_min)) > contrast_threshold:
-        # Ignore points close to boundaries
-        for bound_id in bounds:
-            q = ref_mesh.points()[bound_id]
-            if np.linalg.norm(p - q) < 1:
-                return False
+    # Check if contrast is above threshold
+    if contrast_diff > contrast_threshold:
+        # Get the coordinates of boundary points at once
+        boundary_points = np.array([ref_mesh.points()[bound_id] for bound_id in bounds])
+        
+        # Compute the distances between p and all boundary points
+        distances = np.linalg.norm(boundary_points - p, axis=1)
+        
+        # Check if any distance is less than the threshold (distance threshold = 1)
+        if np.any(distances < 1):
+            return False
+        
+        # No boundary point is too close, return True
         return True
+        
     return False
+
     
+def compute_DoG_meshes(ref_mesh, sigmas=[0.1, 0.2, 0.3, 0.5, 0.8, 1.0], radius=4, batch_size=1000):
+    # Initialize the list for the DoG meshes
+    dog_meshes = [ref_mesh.clone() for _ in range(len(sigmas))]
+    total = len(ref_mesh.points())
     
-def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts = True, inspection = True, output="./"):
+    # Build the k-d tree for fast nearest neighbor queries
+    points = ref_mesh.points()
+    kdtree = KDTree(points)
+    
+    # Process the mesh in batches
+    for batch_start in range(0, total, batch_size):
+        batch_end = min(batch_start + batch_size, total)
+        batch_points = points[batch_start:batch_end]
+        
+        print(f"Processing points {batch_start} to {batch_end} ({round((batch_end / total) * 100, 2)}%)", end="\r")
+        
+        # For each point in the current batch
+        for i, p in enumerate(batch_points):
+            idx_neigh = kdtree.query_ball_point(p, radius)  # Find all points within the radius
+            distances = np.linalg.norm(points[idx_neigh] - p, axis=1)
+
+            # Calculate the Gaussian weights for each sigma
+            weights = np.array([gaussian(distances, 0, sigma) for sigma in sigmas])
+
+            # Calculate smoothed points for each sigma
+            smoothed_points = [np.average(points[idx_neigh], weights=w, axis=0) for w in weights]
+
+            # Update the DoG meshes for each sigma
+            for j, dog_mesh in enumerate(dog_meshes):
+                dog_mesh.points()[batch_start + i] = smoothed_points[j]
+
+    return dog_meshes
+
+def gaussian(x, mean, sigma):
+    """Gaussian function to calculate weights."""
+    return np.exp(-((x - mean) ** 2) / (2 * sigma ** 2))
+    
+def keypoint_detection(mesh, name = "test", res=20, radius = 2, returnIdx = False, returnPts = True, inspection = True, output="./"):
     """ Function for detecting robust keypoints"""
     """
     Input: mesh to find keypoints on, a name for output files, output path, 
@@ -299,6 +332,8 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
     total = len(ref_mesh.points())
     sigmas = [0.1, 0.2, 0.3, 0.5, 0.8, 1.0]
 
+    dog_meshes = compute_DoG_meshes(ref_mesh, sigmas, radius=radius)
+    """
     # Iterate through points in mesh
     for i, p in enumerate(ref_mesh.points()):
         print("    ", round(((i + 1) / total) * 100, 2), " %   ", end="\r")
@@ -316,7 +351,7 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
         # Update dog_mesh points
         for j, dog_mesh in enumerate(dog_meshes):
             dog_mesh.points()[i] = smoothed_points[j]
-
+    """
     # Collect the smoothed meshes
     DoG.extend(dog_meshes)
     if inspection == True:
@@ -339,65 +374,46 @@ def keypoint_detection(mesh, name = "test", res=20, returnIdx = False, returnPts
 
     # find DoC differences
     print("    Working with DoG pyramids                                     ")
-    D1_min = np.subtract(dog_min[0],dog_min[1])
-    D2_min = np.subtract(dog_min[1],dog_min[2])
-    D3_min = np.subtract(dog_min[2],dog_min[3])
-    D4_min = np.subtract(dog_min[3],dog_min[4])
-    D5_min = np.subtract(dog_min[4],dog_min[5])
-    D1_max = np.subtract(dog_max[0],dog_max[1])
-    D2_max = np.subtract(dog_max[1],dog_max[2])
-    D3_max = np.subtract(dog_max[2],dog_max[3])
-    D4_max = np.subtract(dog_max[3],dog_max[4])
-    D5_max = np.subtract(dog_max[4],dog_max[5])
-    
+    # Precompute the min/max values for D1, D2, ..., D5
+    D_min = [np.subtract(dog_min[i], dog_min[i + 1]) for i in range(5)]
+    D_max = [np.subtract(dog_max[i], dog_max[i + 1]) for i in range(5)]
+
     # Initialize keypoint detection
-    bounds = boundaries(ref_mesh,return_point_ids=True)
+    bounds = boundaries(ref_mesh, return_point_ids=True)
     keypoints_id = []
-    contrast_threshold = 0.00001   #0.00001
-    
+    contrast_threshold = 0.00001
 
     # Iterate through points in mesh
     for I, p in enumerate(ref_mesh.points()):
         print("    ", round(((I + 1) / total) * 100, 2), " %   ", end="\r")
-        kp = False
-
+    
         # Compare closest neighborhood
         main_idx, connect_idx = find_subset(I, ref_mesh, ring=1)
         connect_idx = list(set(sum(connect_idx, [])))
-    
+
         # Collect min/max subsets
-        collected_subset_min = np.concatenate((D1_min[connect_idx], D2_min[connect_idx], D3_min[connect_idx]), axis=0)
-        collected_subset_max = np.concatenate((D1_max[connect_idx], D2_max[connect_idx], D3_max[connect_idx]), axis=0)
-        #collected_subset_min = np.concatenate((D1_min[connect_idx], D2_min[connect_idx], D4_min[connect_idx],D5_min[connect_idx],D3_min[connect_idx]), axis=0)
-        #collected_subset_max = np.concatenate((D1_max[connect_idx], D2_max[connect_idx], D4_max[connect_idx],D5_max[connect_idx],D3_max[connect_idx]), axis=0)
-    
-        if D2_min[I] == np.min(collected_subset_min) or D2_min[I] == np.max(collected_subset_min):
+        collected_subset_min = np.concatenate([D_min[i][connect_idx] for i in range(3)], axis=0)
+        collected_subset_max = np.concatenate([D_max[i][connect_idx] for i in range(3)], axis=0)
+
+        min_collected_min = np.min(collected_subset_min)
+        max_collected_min = np.max(collected_subset_min)
+        min_collected_max = np.min(collected_subset_max)
+        max_collected_max = np.max(collected_subset_max)
+
+        # Check keypoints only for relevant conditions
+        if D_min[1][I] == min_collected_min or D_min[1][I] == max_collected_min or \
+           D_min[2][I] == min_collected_min or D_min[2][I] == max_collected_min or \
+           D_min[3][I] == min_collected_min or D_min[3][I] == max_collected_min or \
+           D_max[1][I] == min_collected_max or D_max[1][I] == max_collected_max or \
+           D_max[2][I] == min_collected_max or D_max[2][I] == max_collected_max or \
+           D_max[3][I] == min_collected_max or D_max[3][I] == max_collected_max:
+
+            # Check if this point is a keypoint
             if check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
                 keypoints_id.append(I)
 
-        elif D3_min[I] == np.min(collected_subset_min) or D3_min[I] == np.max(collected_subset_min):
-            if check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
-                keypoints_id.append(I)
-
-        elif D4_min[I] == np.min(collected_subset_min) or D4_min[I] == np.max(collected_subset_min):
-            if check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
-                keypoints_id.append(I)
-
-        elif D2_max[I] == np.min(collected_subset_max) or D2_max[I] == np.max(collected_subset_max):
-            if check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
-                keypoints_id.append(I)
-
-        elif D3_max[I] == np.min(collected_subset_max) or D3_max[I] == np.max(collected_subset_max):
-            if check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
-                keypoints_id.append(I)
-
-        elif D4_max[I] == np.min(collected_subset_max) or D4_max[I] == np.max(collected_subset_max):
-            if check_keypoint(p, collected_subset_min, collected_subset_max, contrast_threshold, bounds, ref_mesh):
-                keypoints_id.append(I)
-                        
-                        
-    #Remove redundancy
-    keypoints_id =list(set(keypoints_id))
+    # Remove redundancy
+    keypoints_id = list(set(keypoints_id))
 
     # Collect possible keypoints
     keypoints.append(submesh.points()[keypoints_id])
@@ -493,7 +509,7 @@ def calculate_SHOT(keypoints,mesh, radius=1):
     return keypoint_descrs
 
 def save_keypoints(keypoints, name, output_path):
-    with open(os.path.join(output_path,name+".json"), "w") as json_file:
+    with open(os.path.join(output_path,name,".json"), "w") as json_file:
         json.dump(keypoints, json_file)
 
 def convert_to_array(dictionary):
@@ -550,24 +566,24 @@ def keypoint_correspondence(dict1, dict2, coord1, coord2):
 
     # Get coordinates
     query_coords = coord1
-    target_coords = coord2
+    target_coords = jcoord2
 
     # create subsets
-    rr_subset = dist_sorted[:15]
-    query_kp = keys_query_sorted[:15]
-    target_kp = keys_target_sorted[:15]
+    rr_subset = dist_sorted[:rr]
+    query_kp = keys_query_sorted[:rr]
+    target_kp = keys_target_sorted[:rr]
 
     # Means
     ar_mean.append(np.mean(rr_subset))
 
     # disparity subset
-    query_kp = keys_query_sorted[:8]
-    target_kp = keys_target_sorted[:8]
+    query_kp = keys_query_sorted[:rr]
+    target_kp = keys_target_sorted[:rr]
 
     # Disparity
     query_dis = [query_coords[key] for key in query_kp]
     target_dis = [target_coords[key] for key in target_kp]
-    if np.all(target_dis == target_dis[0]):
+    if all(element == target_dis[0] for element in target_dis):
         disparity.append(1)
     else:
         _, _, disp_raw = procrustes(np.array(query_dis), np.array(target_dis))
