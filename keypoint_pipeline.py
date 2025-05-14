@@ -27,6 +27,7 @@ from scipy import spatial
 from scipy.spatial import KDTree
 import pyshot
 from scipy.spatial import procrustes
+import json
 
 
 def boundaries(
