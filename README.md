@@ -1,6 +1,6 @@
  # 🦷 Dental Keypoint Pipeline
  
- This repository contains the steps and code required to perform the **dental keypoint pipeline**, as presented in the papers: _[Add references here]_. 
+ This repository contains the steps and code required to perform the **dental keypoint pipeline**, as presented in the papers:  
 - _Kofod Petersen, A., Forgie, A., Bindslev, D. A., Villesen, P. & Staun Larsen, L. **Automatic removal of soft tissue from 3D dental photo scans; an important step in automating future forensic odontology identification**. Scientific Reports 14, 12421 (2024). https://doi.org/10.1038/s41598-024-63198-2_.
 - _Kofod Petersen, A., Forgie, A., Villesen, P. & Staun Larsen, L. **3D Dental Similarity Quantification in Forensic Odontology Identification**. Forensic Science International, 112462 (2025). https://doi.org/10.1016/j.forsciint.2025.112462_.
 - _Kofod Petersen, A. et al. **Charred or Fragmented, Yet Comparable: Quantifying Dental Surface Similarity Across Teeth, Jaws, and Heat Exposure**. medRxiv (preprint), 2025.2004.2007.25325362 (2025). https://doi.org/10.1101/2025.04.07.25325362_.
